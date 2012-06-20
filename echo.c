@@ -5,7 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ADDR	"3100"
+#define ADDR	"dingdong"
+#define PORT	"3100"
 #define LISTEN_BACKLOG	50
 #define WEIGHT 10000
 
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
 	hints.ai_addr = NULL;
 	hints.ai_next = NULL;
 
-	ret = getaddrinfo(NULL, ADDR, &hints, &result);
+	ret = getaddrinfo(ADDR, PORT, &hints, &result);
 
 	if ( ret != 0 ) {
 
