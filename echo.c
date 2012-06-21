@@ -9,8 +9,9 @@
 #define PORT	"3100"
 #define LISTEN_BACKLOG	50
 #define WEIGHT 10000
+#define SLEEP_WEIGHT	500 /* 500 ms*/
 
-void handle_client(int cfd)
+void handle_client_w(int cfd)
 {
 	int i;
 	int prod;
@@ -32,6 +33,18 @@ void handle_client(int cfd)
 
 	close(cfd);
 }
+
+void handle_client_s(int cfd)
+{
+	char prod_str[8] = "1234567";
+
+	usleep(SLEEP_WEIGHT);
+
+	write(cfd, prod_str, 8);
+
+	close(cfd);
+}
+
 
 
 int main(int argc, char **argv)
@@ -95,7 +108,8 @@ int main(int argc, char **argv)
 
 	while ( (cfd = accept(sfd, &peer_addr, &peer_addr_len)) != -1 )
 	{
-		handle_client(cfd);
+		//handle_client(cfd);
+		handle_client_s(cfd);
 		peer_addr_len = sizeof(struct sockaddr);
 	}
 

@@ -8,13 +8,22 @@
 #define ADDR	"dingdong"
 #define PORT	"3100"
 
-int main(int argc, char **argv)
+void print_time_diff(char *s, struct timeval t1, struct timeval t2)
+{
+	if ( t1.tv_sec == t2.tv_sec )
+		fprintf(stderr, "pms %s: %ld\n", s, t2.tv_usec - t1.tv_usec);
+	else
+		fprintf(stderr, "cms %s: %ld\n", s, ((t2.tv_sec - t2.tv_sec)*1000*1000) + (1000*1000 - t1.tv_usec) + t2.tv_usec);
+}
+
+int client_work()
 {
 	int cfd;
 	int ret;
 	struct addrinfo *result, *rp;
 	struct addrinfo hints;
 	char buff[32];
+	struct timeval t_initial, t_final;
 
 
 	memset(&hints, 0, sizeof(struct addrinfo));
@@ -30,7 +39,7 @@ int main(int argc, char **argv)
 	if ( ret != 0 ) {
 
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(ret));
-		exit(EXIT_FAILURE);
+		return -1;
 
 	}
 
@@ -40,8 +49,12 @@ int main(int argc, char **argv)
 
 		if  ( cfd == -1 ) continue;
 
-		if ( connect(cfd, rp->ai_addr, rp->ai_addrlen) != -1 )
+		gettimeofday(&t_initial, NULL);
+		if ( connect(cfd, rp->ai_addr, rp->ai_addrlen) != -1 ) {
+			gettimeofday(&t_final, NULL);
+			print_time_diff("CONNECT", t_initial, t_final);
 			break;
+		}
 
 		perror("connect:");
 
@@ -51,24 +64,33 @@ int main(int argc, char **argv)
 	if ( rp == NULL ) {
 
 		fprintf(stderr, "Could not connect\n");
-		exit(EXIT_FAILURE);
+		return -1;
 	}
 
 	freeaddrinfo(result);
 
+	gettimeofday(&t_initial, NULL);
 	ret = read(cfd, buff, 32);
+	gettimeofday(&t_final, NULL);
+
+	print_time_diff("READ", t_initial, t_final);
 
 	if ( ret != -1 ) {
 
 		printf("%s\n", buff);
+
+		return 0;
 		
-		exit(EXIT_SUCCESS);
 	}
 
-	exit(EXIT_FAILURE);
-
-	return 0;
+	return -1;
 }
 
 
+int main(int argc, char **argv)
+{
 
+	client_work();
+
+	return 0;
+}
