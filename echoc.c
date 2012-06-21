@@ -4,16 +4,20 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #define ADDR	"dingdong"
 #define PORT	"3100"
+#define NUM_THREADS	5
+#define COMMAND	"START"
+#define COMMAND_LEN 6
 
 void print_time_diff(char *s, struct timeval t1, struct timeval t2)
 {
 	if ( t1.tv_sec == t2.tv_sec )
-		fprintf(stderr, "pms %s: %ld\n", s, t2.tv_usec - t1.tv_usec);
+		fprintf(stderr, "%s: %ld\n", s, t2.tv_usec - t1.tv_usec);
 	else
-		fprintf(stderr, "cms %s: %ld\n", s, ((t2.tv_sec - t2.tv_sec)*1000*1000) + (1000*1000 - t1.tv_usec) + t2.tv_usec);
+		fprintf(stderr, "%s: %ld\n", s, ((t2.tv_sec - t2.tv_sec)*1000*1000) + (1000*1000 - t1.tv_usec) + t2.tv_usec);
 }
 
 int client_work()
@@ -70,8 +74,15 @@ int client_work()
 	freeaddrinfo(result);
 
 	gettimeofday(&t_initial, NULL);
+	ret = write(cfd, COMMAND, COMMAND_LEN);
+	gettimeofday(&t_final, NULL);
+	print_time_diff("WRITE", t_initial, t_final);
+
+	gettimeofday(&t_initial, NULL);
 	ret = read(cfd, buff, 32);
 	gettimeofday(&t_final, NULL);
+
+	close(cfd);
 
 	print_time_diff("READ", t_initial, t_final);
 
@@ -90,7 +101,31 @@ int client_work()
 int main(int argc, char **argv)
 {
 
-	client_work();
+	pthread_t threads[NUM_THREADS];
+	pthread_attr_t attr;
+
+	int rc;
+	long t;
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+	for ( t=0; t<NUM_THREADS; t++) {
+
+		rc = pthread_create(&threads[t], &attr, (void *)client_work, NULL);
+
+		if ( rc ) perror("pthread_create:");
+
+	}
+
+	/* Wait till the jobs are done */
+
+	for ( t=0; t<NUM_THREADS; t++ ) {
+
+		rc = pthread_join(threads[t], NULL);
+
+		if ( rc ) perror("pthread_join:");
+	}
 
 	return 0;
 }

@@ -4,12 +4,16 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #define ADDR	"dingdong"
 #define PORT	"3100"
 #define LISTEN_BACKLOG	50
 #define WEIGHT 10000
 #define SLEEP_WEIGHT	500 /* 500 ms*/
+#define USE_THREADS
+#define COMMAND	"START"
+#define COMMAND_LEN 8
 
 void handle_client_w(int cfd)
 {
@@ -34,15 +38,28 @@ void handle_client_w(int cfd)
 	close(cfd);
 }
 
-void handle_client_s(int cfd)
+void handle_client_s(void *cfd)
 {
 	char prod_str[8] = "1234567";
+	char read_buf[COMMAND_LEN];
+	int icfd = *(int *)cfd;
+	int ret;
 
-	usleep(SLEEP_WEIGHT);
+	memset(read_buf, 0, COMMAND_LEN);
+	ret = read(icfd, read_buf, COMMAND_LEN);
 
-	write(cfd, prod_str, 8);
+	if ( ret != -1 ) {
 
-	close(cfd);
+		if ( strcmp(read_buf, COMMAND) == 0 )
+		{
+			usleep(SLEEP_WEIGHT);
+			write(icfd, prod_str, 8);
+		}
+	}
+
+	close(icfd);
+
+	return;
 }
 
 
@@ -108,8 +125,14 @@ int main(int argc, char **argv)
 
 	while ( (cfd = accept(sfd, &peer_addr, &peer_addr_len)) != -1 )
 	{
-		//handle_client(cfd);
-		handle_client_s(cfd);
+		pthread_t t;
+		int local_cfd = cfd;
+#ifdef USE_THREADS
+		pthread_create(&t, NULL,  (void *)handle_client_s, (void *)(&cfd));
+		pthread_yield();
+#else
+		handle_client_s(&local_cfd);
+#endif
 		peer_addr_len = sizeof(struct sockaddr);
 	}
 
