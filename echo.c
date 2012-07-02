@@ -5,13 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
 
 #define ADDR	"dingdong"
 #define PORT	"3100"
 #define LISTEN_BACKLOG	50
 #define WEIGHT 10000
 #define SLEEP_WEIGHT	500 /* 500 ms*/
-#define USE_THREADS
+//#define USE_THREADS
 #define COMMAND	"START"
 #define COMMAND_LEN 8
 
@@ -62,17 +63,87 @@ void handle_client_s(void *cfd)
 	return;
 }
 
+void sig_func(void *arg)
+{
+	int s, sig;
+	sigset_t *set = (sigset_t *)arg;
+
+	while ( 1 ) {
+
+		s = sigwait(set, &sig);
+
+		if ( sig != 0 ) {
+			fprintf(stderr, "Got signal: %d\n", sig);
+			break;
+		}
+
+	}
+}
+
+void accept_func(void *sfd_arg)
+{
+	struct sockaddr peer_addr;
+	int cfd, sfd;
+	size_t peer_addr_len;
+
+	sfd = *(int *)sfd_arg;
+
+	peer_addr_len = sizeof(struct sockaddr);
+
+	while ( (cfd = accept(sfd, &peer_addr, &peer_addr_len)) != -1 )
+	{
+		pthread_t t;
+		int local_cfd = cfd;
+#ifdef USE_THREADS
+		pthread_create(&t, NULL,  (void *)handle_client_s, (void *)(&cfd));
+		pthread_yield();
+#else
+		handle_client_s(&local_cfd);
+#endif
+		peer_addr_len = sizeof(struct sockaddr);
+	}
+
+	perror("accept:");
+
+}
 
 
 int main(int argc, char **argv)
 {
-	int sfd, cfd;
+
+	int sfd;
 	int ret;
+	pthread_t sig_thread, accept_thread;
+	pthread_attr_t attr;
+	sigset_t set;
 	struct addrinfo *result, *rp;
 	struct addrinfo hints;
-	struct sockaddr peer_addr;
 	socklen_t peer_addr_len;
+	
+	sigemptyset(&set);
+	sigaddset(&set, SIGQUIT);
+	sigaddset(&set, SIGINT);
+	sigaddset(&set, SIGUSR1);
 
+	ret = pthread_sigmask(SIG_BLOCK, &set, NULL);
+	
+	if ( ret ) {
+
+		perror("pthread_sigmask:");
+		exit(EXIT_FAILURE);
+	}
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+	ret = pthread_create(&sig_thread, &attr, (void *)sig_func, (void *)&set);
+
+	if ( ret ) {
+
+		perror("pthread_create:");
+		exit(EXIT_FAILURE);
+	}
+	
 	memset(&hints, 0, sizeof(struct addrinfo));
 
 	hints.ai_family = AF_UNSPEC;
@@ -121,22 +192,20 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	peer_addr_len = sizeof(struct sockaddr);
+	ret = pthread_create(&accept_thread, NULL, (void *)accept_func, (void *)&sfd);
 
-	while ( (cfd = accept(sfd, &peer_addr, &peer_addr_len)) != -1 )
-	{
-		pthread_t t;
-		int local_cfd = cfd;
-#ifdef USE_THREADS
-		pthread_create(&t, NULL,  (void *)handle_client_s, (void *)(&cfd));
-		pthread_yield();
-#else
-		handle_client_s(&local_cfd);
-#endif
-		peer_addr_len = sizeof(struct sockaddr);
+	if ( ret ) {
+
+		perror("accept thread pthread_create:");
+		close(sfd);
+		exit(EXIT_FAILURE);
 	}
 
-	perror("accept:");
+	ret = pthread_join(sig_thread, NULL);
+
+	if ( ret ) perror("pthread_join:");
+
+	printf("Closing\n");
 
 	close(sfd);
 
