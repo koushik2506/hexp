@@ -7,7 +7,8 @@
 #include <pthread.h>
 #include <signal.h>
 
-#define ADDR	"dingdong"
+//#define ADDR	"dingdong"
+#define ADDR	"tingtong"
 #define PORT	"3100"
 #define LISTEN_BACKLOG	50
 #define WEIGHT 10000
@@ -53,8 +54,12 @@ void handle_client_s(void *cfd)
 
 		if ( strcmp(read_buf, COMMAND) == 0 )
 		{
+			printf("Got %s \n", read_buf);
 			usleep(SLEEP_WEIGHT);
 			write(icfd, prod_str, 8);
+		}
+		else {
+			printf("read_buf: %s\n", read_buf);
 		}
 	}
 

@@ -6,11 +6,13 @@
 #include <string.h>
 #include <pthread.h>
 
-#define ADDR	"dingdong"
+//#define ADDR	"dingdong"
+#define ADDR	"tingtong"
 #define PORT	"3100"
 #define NUM_THREADS	5
 #define COMMAND	"START"
 #define COMMAND_LEN 6
+#define MULTIPLE_CLIENTS
 
 void print_time_diff(char *s, struct timeval t1, struct timeval t2)
 {
@@ -82,7 +84,7 @@ int client_work()
 	ret = read(cfd, buff, 32);
 	gettimeofday(&t_final, NULL);
 
-	close(cfd);
+//	close(cfd);
 
 	print_time_diff("READ", t_initial, t_final);
 
@@ -100,7 +102,7 @@ int client_work()
 
 int main(int argc, char **argv)
 {
-
+#ifdef MULTIPLE_CLIENTS
 	pthread_t threads[NUM_THREADS];
 	pthread_attr_t attr;
 
@@ -128,4 +130,9 @@ int main(int argc, char **argv)
 	}
 
 	return 0;
+#else
+	client_work();
+	return 0;
+#endif
+	
 }
