@@ -6,8 +6,8 @@
 #include <string.h>
 #include <pthread.h>
 
-//#define ADDR	"dingdong"
-#define ADDR	"tingtong"
+#define ADDR	"dingdong"
+//#define ADDR	"tingtong"
 #define PORT	"3100"
 #define NUM_THREADS	5
 #define COMMAND	"START"
@@ -28,7 +28,7 @@ int client_work()
 	int ret;
 	struct addrinfo *result, *rp;
 	struct addrinfo hints;
-	char buff[32];
+	char buff[32], c;
 	struct timeval t_initial, t_final;
 
 
@@ -84,7 +84,9 @@ int client_work()
 	ret = read(cfd, buff, 32);
 	gettimeofday(&t_final, NULL);
 
-//	close(cfd);
+	shutdown(cfd, SHUT_RDWR);
+
+	close(cfd);
 
 	print_time_diff("READ", t_initial, t_final);
 

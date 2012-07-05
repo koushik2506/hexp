@@ -7,8 +7,8 @@
 #include <pthread.h>
 #include <signal.h>
 
-//#define ADDR	"dingdong"
-#define ADDR	"tingtong"
+#define ADDR	"dingdong"
+//#define ADDR	"tingtong"
 #define PORT	"3100"
 #define LISTEN_BACKLOG	50
 #define WEIGHT 10000
@@ -46,13 +46,14 @@ void handle_client_s(void *cfd)
 	char read_buf[COMMAND_LEN];
 	int icfd = *(int *)cfd;
 	int ret;
+	char c = 0;
 
 	memset(read_buf, 0, COMMAND_LEN);
 	ret = read(icfd, read_buf, COMMAND_LEN);
 
 	if ( ret != -1 ) {
 
-		if ( strcmp(read_buf, COMMAND) == 0 )
+		if ( strncmp(read_buf, COMMAND, strlen(COMMAND)) == 0 )
 		{
 			printf("Got %s \n", read_buf);
 			usleep(SLEEP_WEIGHT);
@@ -62,8 +63,22 @@ void handle_client_s(void *cfd)
 			printf("read_buf: %s\n", read_buf);
 		}
 	}
+	
+//	shutdown(icfd, SHUT_RDWR);
+	
+//	close(icfd);
 
+	ret = read(icfd, &c, 1);
+
+	printf("ret is %d\n", ret);
+
+	shutdown(icfd, SHUT_RDWR);
 	close(icfd);
+
+#ifdef USE_THREADS
+	pthread_exit(NULL);
+#endif
+	
 
 	return;
 }
@@ -83,6 +98,9 @@ void sig_func(void *arg)
 		}
 
 	}
+#ifdef USE_THREADS
+	pthread_exit(NULL);
+#endif
 }
 
 void accept_func(void *sfd_arg)
@@ -109,6 +127,9 @@ void accept_func(void *sfd_arg)
 	}
 
 	perror("accept:");
+#ifdef USE_THREADS
+	pthread_exit(NULL);
+#endif
 
 }
 
@@ -170,9 +191,12 @@ int main(int argc, char **argv)
 
 	for ( rp = result; rp != NULL; rp = rp->ai_next )
 	{
+		int sock_opt = 1;
 		sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 
 		if ( sfd == -1 ) continue;
+
+		setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &sock_opt, sizeof(int));
 
 		if  ( bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0 ) break;
 
