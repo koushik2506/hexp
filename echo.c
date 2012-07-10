@@ -70,7 +70,7 @@ void handle_client_s(void *cfd)
 
 	ret = read(icfd, &c, 1);
 
-	printf("ret is %d\n", ret);
+	printf("ret is %d\n", ret); 
 
 	shutdown(icfd, SHUT_RDWR);
 	close(icfd);
